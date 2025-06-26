@@ -13,25 +13,6 @@ jest.mock('../constants', () => ({
   },
 }));
 
-jest.mock('../hooks/useInstanceActionModal', () => ({
-  useInstanceActionModal: () => ({
-    openModal: jest.fn(),
-    closeModal: jest.fn(),
-    isOpen: false,
-    actionItem: undefined,
-    actionType: undefined,
-  }),
-}));
-
-jest.mock('../hooks/useCancellationReasonModal', () => ({
-  useCancellationReasonModal: () => ({
-    showReason: jest.fn(),
-    hideReason: jest.fn(),
-    reasonItem: undefined,
-    isOpen: false,
-  }),
-}));
-
 describe('Home Page', () => {
   const mockUpdatePaths = jest.fn();
 
@@ -50,6 +31,6 @@ describe('Home Page', () => {
       </PageProvider>
     );
 
-    expect(screen.getByText('Blob Storage')).toBeInTheDocument();
+    expect(screen.getByText('Administrador de Blob Storage')).toBeInTheDocument();
   });
 });

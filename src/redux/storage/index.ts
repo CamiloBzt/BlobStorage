@@ -1,11 +1,18 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { blobStorageApi } from './api/blobStorageApi';
+import { checkPointApi } from './api/checkPointApi';
 import pageStateReducer from './slices/pageStatesSlice';
 
 const staticReducers = {
   pageState: pageStateReducer,
+  [checkPointApi.reducerPath]: checkPointApi.reducer,
+  [blobStorageApi.reducerPath]: blobStorageApi.reducer,
 };
 
-const apiMiddlewares = {};
+const apiMiddlewares = {
+  [checkPointApi.reducerPath]: checkPointApi.middleware,
+  [blobStorageApi.reducerPath]: blobStorageApi.middleware,
+};
 
 let store = null;
 let injectReducer:

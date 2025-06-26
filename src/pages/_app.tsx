@@ -3,6 +3,7 @@ import store from '@/redux/storage';
 import App, { AppContext, AppProps } from 'next/app';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
+import '../styles/BlobStorageAdmin.scss';
 import '../styles/globals.scss';
 
 export const safeRedirect = (url: string, pageProps: AppProps['pageProps']) => {
