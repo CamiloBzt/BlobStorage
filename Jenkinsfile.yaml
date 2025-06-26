@@ -1,0 +1,6 @@
+sonarArgs: '-Dsonar.projectKey=pendig-fro-blob-storage-mf-react-next -Dsonar.sources=.'
+pathKubernetes: 'k8s/pendig-fro-blob-storage-mf-react-next-deployment.yaml'
+project: 'ns-frontend-pendigital-plan-c'
+artifactName: 'pendig-fro-blob-storage-mf-react-next'
+replicasDev: 1
+replicasPrd: 1

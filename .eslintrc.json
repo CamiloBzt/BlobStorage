@@ -1,0 +1,52 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:prettier/recommended",
+    "next/core-web-vitals"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "indent": ["error", 2],
+    "max-len": [
+      "error",
+      {
+        "code": 82,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true
+      }
+    ],
+    "object-curly-newline": ["error", { "ImportDeclaration": "always" }],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"],
+    "no-unused-vars": "warn",
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "prettier/prettier": [
+      "error",
+      {
+        "printWidth": 82,
+        "singleQuote": true,
+        "semi": true,
+        "tabWidth": 2,
+        "useTabs": false
+      }
+    ]
+  },
+  "plugins": ["prettier"]
+}
