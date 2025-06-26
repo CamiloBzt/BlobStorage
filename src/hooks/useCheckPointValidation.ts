@@ -29,41 +29,57 @@ export const useCheckPointValidation = (
 
       let attempts = 0;
       const maxAttempts = 30;
+      const delayMs = 1000; // 1 segundo entre intentos
 
       while (attempts < maxAttempts) {
-        const queryResult = await queryCheckPoint({
-          md5,
-          features: ['av', 'te'],
-          file_name: '',
-        }).unwrap();
+        try {
+          const queryResult = await queryCheckPoint({
+            md5,
+            features: ['av', 'te'],
+            file_name: file.name,
+          }).unwrap();
 
-        if (queryResult.response.status.code === 1001) {
-          const verdict = queryResult.response.te.combined_verdict;
+          if (queryResult.response.status.code === 1001) {
+            const verdict = queryResult.response.te.combined_verdict;
 
-          if (verdict === 'benign') {
-            setUploadStatus('✅ Archivo validado como seguro');
-            return true;
-          } else {
-            setUploadStatus(`❌ Archivo detectado como: ${verdict}`);
-            showNotification(
-              'error',
-              `🚨 ARCHIVO MALICIOSO DETECTADO: ${verdict.toUpperCase()}`
-            );
-            return false;
+            if (verdict === 'benign') {
+              setUploadStatus('✅ Archivo validado como seguro');
+              return true;
+            } else {
+              setUploadStatus(`❌ Archivo detectado como: ${verdict}`);
+              showNotification(
+                'error',
+                `🚨 ARCHIVO MALICIOSO DETECTADO: ${verdict.toUpperCase()} - ${
+                  file.name
+                }`
+              );
+              return false;
+            }
           }
-        }
 
-        attempts++;
-        setUploadStatus(`⏳ Analizando archivo... (${attempts}/${maxAttempts})`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+          attempts++;
+          setUploadStatus(
+            `⏳ Analizando archivo... (${attempts}/${maxAttempts})`
+          );
+
+          // Esperar antes del siguiente intento
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        } catch (queryError) {
+          // Si el query falla, continuar intentando
+          console.log(`Intento ${attempts} falló, continuando...`);
+        }
       }
 
       throw new Error(
         'Timeout en la validación. El análisis está tomando demasiado tiempo.'
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en validación CheckPoint:', error);
-      showNotification('error', `Error en validación de seguridad: ${error}`);
+      const errorMessage = error?.message || 'Error desconocido';
+      showNotification(
+        'error',
+        `Error en validación de seguridad para ${file.name}: ${errorMessage}`
+      );
       return false;
     }
   };
