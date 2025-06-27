@@ -6,12 +6,14 @@ import React from 'react';
 interface FileValidationSectionProps {
   files: FileWithValidation[];
   onRemove: (fileId: string) => void;
+  onRetryValidation?: (file: FileWithValidation) => void;
   validatingFiles: boolean;
 }
 
 export const FileValidationSection: React.FC<FileValidationSectionProps> = ({
   files,
   onRemove,
+  onRetryValidation,
   validatingFiles,
 }) => {
   const getFileItemState = (
@@ -48,6 +50,17 @@ export const FileValidationSection: React.FC<FileValidationSectionProps> = ({
     return '';
   };
 
+  const shouldShowReloadButton = (file: FileWithValidation): boolean => {
+    // Mostrar botón de reload solo cuando hay error en validación
+    return file.validationStatus === 'error' && !validatingFiles;
+  };
+
+  const handleReload = (file: FileWithValidation) => {
+    if (onRetryValidation && file.validationStatus === 'error') {
+      onRetryValidation(file);
+    }
+  };
+
   return (
     <div className="file-validation-section">
       <h4 className="file-validation-section__title">
@@ -62,11 +75,13 @@ export const FileValidationSection: React.FC<FileValidationSectionProps> = ({
               $size={formatFileSize(file.file.size)}
               $state={getFileItemState(file)}
               $onRemove={() => onRemove(file.id)}
+              $onReload={() => handleReload(file)}
               $showDeleteButton={
-                !validatingFiles && file.uploadStatus !== 'uploading'
+                !validatingFiles &&
+                file.uploadStatus !== 'uploading' &&
+                file.validationStatus !== 'validating'
               }
-              $showReloadButton={false}
-              $onReload={() => {}}
+              $showReloadButton={shouldShowReloadButton(file)}
             />
             {getStatusMessage(file) && (
               <p

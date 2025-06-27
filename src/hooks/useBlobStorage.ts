@@ -1,7 +1,7 @@
 import {
-    useDownloadBlobMutation,
-    useListBlobsQuery,
-    useUploadBlobMutation,
+  useDownloadBlobMutation,
+  useListBlobsQuery,
+  useUploadBlobMutation,
 } from '@/redux/storage/api/blobStorageApi';
 import { useEffect, useState } from 'react';
 import { BlobInfo } from '../types/blobTypes';

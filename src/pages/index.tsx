@@ -1,6 +1,5 @@
 import { BlobListSection } from '@/components/BlobListSection/BlobListSection';
 import { FileValidationSection } from '@/components/FileValidationSection/FileValidationSection';
-import { NotificationBanner } from '@/components/NotificationBanner/NotificationBanner';
 import { StatsSection } from '@/components/StatsSection/StatsSection';
 import { useBlobStorage } from '@/hooks/useBlobStorage';
 import { useMultiFileValidation } from '@/hooks/useMultiFileValidation';
@@ -17,17 +16,17 @@ const BlobStorageAdmin = () => {
   const [containerName, setContainerName] = useState('onboarding');
   const [directory, setDirectory] = useState('');
 
-  const { notification, showNotification, hideNotification } = useNotification();
+  const { showNotification } = useNotification();
 
   const {
     files,
     validatingFiles,
     addFiles,
     removeFile,
-    validateAllFiles,
+    validateFiles,
     uploadValidatedFiles,
     getValidatedFiles,
-    getFailedFiles,
+    retryValidation,
   } = useMultiFileValidation(showNotification);
 
   const {
@@ -47,7 +46,7 @@ const BlobStorageAdmin = () => {
     setUploadStatus: () => {},
   });
 
-  const handleFileSelect = (fileList: FileList) => {
+  const handleFileSelect = async (fileList: FileList) => {
     const maxSize = 6 * 1024 * 1024;
     const validFiles = Array.from(fileList).filter((file) => {
       if (file.size > maxSize) {
@@ -61,12 +60,10 @@ const BlobStorageAdmin = () => {
     });
 
     if (validFiles.length > 0) {
-      addFiles(validFiles);
+      const addedFiles = addFiles(validFiles);
+      // Validar los archivos recién agregados
+      await validateFiles(addedFiles);
     }
-  };
-
-  const handleValidateAll = async () => {
-    await validateAllFiles();
   };
 
   const handleUploadAll = async () => {
@@ -77,9 +74,6 @@ const BlobStorageAdmin = () => {
     }
 
     await uploadValidatedFiles(uploadBlob, containerName, directory);
-    setTimeout(() => {
-      listBlobs();
-    }, 1000);
   };
 
   return (
@@ -95,14 +89,6 @@ const BlobStorageAdmin = () => {
             seguridad CheckPoint
           </p>
         </div>
-
-        {/* Notification */}
-        {notification && (
-          <NotificationBanner
-            notification={notification}
-            onClose={hideNotification}
-          />
-        )}
 
         {/* Controls Card */}
         <div className="blob-storage-admin__controls">
@@ -126,7 +112,7 @@ const BlobStorageAdmin = () => {
                 onClick={listBlobs}
                 disabled={loading}
                 $color="primary"
-                $type="solid"
+                $type="soft"
                 $leadingIcon={loading ? undefined : 'refresh'}
                 className="blob-storage-admin__refresh-button"
               >
@@ -180,6 +166,7 @@ const BlobStorageAdmin = () => {
                 files={files}
                 onRemove={removeFile}
                 validatingFiles={validatingFiles}
+                onRetryValidation={retryValidation}
               />
             )}
 
@@ -187,23 +174,14 @@ const BlobStorageAdmin = () => {
             {files.length > 0 && (
               <div className="blob-storage-admin__actions">
                 <Button
-                  onClick={handleValidateAll}
+                  onClick={handleUploadAll}
                   disabled={
+                    uploading ||
                     validatingFiles ||
-                    files.every((f) => f.validationStatus !== 'pending')
+                    getValidatedFiles().length === 0
                   }
                   $color="primary"
-                  $type="outline"
-                  $leadingIcon="security"
-                >
-                  {validatingFiles ? 'Validando...' : 'Validar Archivos'}
-                </Button>
-
-                <Button
-                  onClick={handleUploadAll}
-                  disabled={uploading || getValidatedFiles().length === 0}
-                  $color="tertiary"
-                  $type="solid"
+                  $type="soft"
                   $leadingIcon="moveUp"
                 >
                   {uploading

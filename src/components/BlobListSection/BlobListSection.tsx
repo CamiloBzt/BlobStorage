@@ -1,13 +1,14 @@
 import { BlobInfo } from '@/types/blobTypes';
-import { getFileIcon, formatFileSize } from '@/utils/fileUtils';
-import { Icon, ButtonIcon } from 'pendig-fro-transversal-lib-react';
-import React from 'react';
+import { formatFileSize } from '@/utils/fileUtils';
+import { Icon, FileItem, Button } from 'pendig-fro-transversal-lib-react';
+import React, { useState } from 'react';
 
 interface BlobListSectionProps {
   blobs: BlobInfo[];
   loading: boolean;
   directory: string;
   onDownload: (blobName: string) => void;
+  onDelete?: (blobName: string) => void;
 }
 
 export const BlobListSection: React.FC<BlobListSectionProps> = ({
@@ -15,19 +16,44 @@ export const BlobListSection: React.FC<BlobListSectionProps> = ({
   loading,
   directory,
   onDownload,
+  onDelete,
 }) => {
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(
+    new Set()
+  );
+
+  const handleDownload = async (blob: BlobInfo) => {
+    setDownloadingFiles((prev) => new Set(prev).add(blob.name));
+    try {
+      await onDownload(blob.name);
+    } finally {
+      setDownloadingFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(blob.name);
+        return newSet;
+      });
+    }
   };
 
-  const getFileType = (contentType: string) => {
-    return contentType.split('/')[0];
+  const handleReload = (blob: BlobInfo) => {
+    // Reintentar descarga
+    handleDownload(blob);
+  };
+
+  const handleRemove = (blob: BlobInfo) => {
+    if (onDelete) {
+      onDelete(blob.name);
+    }
+  };
+
+  const getFileState = (
+    blob: BlobInfo
+  ): 'done' | 'error' | 'success' | 'uploading' => {
+    if (downloadingFiles.has(blob.name)) {
+      return 'uploading';
+    }
+    // Por defecto los archivos ya subidos están en estado 'done'
+    return 'done';
   };
 
   return (
@@ -62,67 +88,48 @@ export const BlobListSection: React.FC<BlobListSectionProps> = ({
           </p>
         </div>
       ) : (
-        <div className="blob-list__table">
-          <table className="blob-list__table-wrapper">
-            <thead className="blob-list__table-header">
-              <tr>
-                <th className="blob-list__table-cell">Archivo</th>
-                <th className="blob-list__table-cell">Tamaño</th>
-                <th className="blob-list__table-cell">Tipo</th>
-                <th className="blob-list__table-cell">Modificado</th>
-                <th className="blob-list__table-cell">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="blob-list__table-body">
-              {blobs.map((blob, index) => (
-                <tr key={index} className="blob-list__table-row">
-                  <td className="blob-list__file-cell">
-                    <div className="blob-list__file-info">
-                      <span className="blob-list__file-icon">
-                        {getFileIcon(blob.contentType)}
-                      </span>
-                      <div>
-                        <div className="blob-list__file-name">{blob.name}</div>
-                        <div className="blob-list__file-type">
-                          {blob.contentType}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="blob-list__size-cell">
-                    {formatFileSize(blob.size)}
-                  </td>
-                  <td className="blob-list__file-cell">
-                    <span className="blob-list__type-badge">
-                      {getFileType(blob.contentType)}
-                    </span>
-                  </td>
-                  <td className="blob-list__date-cell">
-                    {formatDate(blob.lastModified)}
-                  </td>
-                  <td className="blob-list__actions-cell">
-                    <div className="blob-list__actions">
-                      <ButtonIcon
-                        $icon="download"
-                        $size="small"
-                        $type="ghost"
-                        $color="primary"
-                        onClick={() => onDownload(blob.name)}
-                        title="Descargar"
-                      />
-                      <ButtonIcon
-                        $icon="delete"
-                        $size="small"
-                        $type="ghost"
-                        $color="primary"
-                        title="Eliminar"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="blob-list__files">
+          <div className="blob-list__files-grid">
+            {blobs.map((blob, index) => (
+              <div
+                key={`${blob.name}_${index}`}
+                className="blob-list__file-wrapper"
+              >
+                <FileItem
+                  $name={blob.name}
+                  $size={formatFileSize(blob.size)}
+                  $state={getFileState(blob)}
+                  $onRemove={() => handleRemove(blob)}
+                  $onReload={() => handleReload(blob)}
+                  $showDeleteButton={
+                    !downloadingFiles.has(blob.name) && !!onDelete
+                  }
+                  $showReloadButton={downloadingFiles.has(blob.name)}
+                />
+                <div className="blob-list__file-metadata">
+                  <span className="blob-list__file-type">{blob.contentType}</span>
+                  <span className="blob-list__file-date">
+                    {new Date(blob.lastModified).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+                {!downloadingFiles.has(blob.name) && (
+                  <Button
+                    $type="soft"
+                    className="blob-list__download-button"
+                    onClick={() => handleDownload(blob)}
+                    title="Descargar archivo"
+                  >
+                    <Icon $name="download" $w="1rem" $h="1rem" />
+                    Descargar
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

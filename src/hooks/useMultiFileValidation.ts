@@ -34,6 +34,9 @@ export const useMultiFileValidation = (
         'info',
         `${newFiles.length} archivo(s) agregado(s) para validación`
       );
+
+      // Retornar los archivos agregados para poder validarlos
+      return filesWithValidation;
     },
     [showNotification]
   );
@@ -82,40 +85,53 @@ export const useMultiFileValidation = (
     }
   };
 
-  const validateAllFiles = useCallback(async () => {
-    setValidatingFiles(true);
+  const validateFiles = useCallback(
+    async (filesToValidate: FileWithValidation[]) => {
+      setValidatingFiles(true);
 
-    const pendingFiles = files.filter((f) => f.validationStatus === 'pending');
-    if (pendingFiles.length === 0) {
-      showNotification('info', 'No hay archivos pendientes de validación');
+      const pendingFiles = filesToValidate.filter(
+        (f) => f.validationStatus === 'pending'
+      );
+      if (pendingFiles.length === 0) {
+        setValidatingFiles(false);
+        return;
+      }
+
+      showNotification(
+        'info',
+        `Iniciando validación de ${pendingFiles.length} archivo(s)`
+      );
+
+      let validCount = 0;
+      let invalidCount = 0;
+
+      // Validar archivos en paralelo pero con un límite para no saturar
+      const batchSize = 3; // Validar máximo 3 archivos a la vez
+      for (let i = 0; i < pendingFiles.length; i += batchSize) {
+        const batch = pendingFiles.slice(i, i + batchSize);
+        const results = await Promise.all(
+          batch.map((file) => validateSingleFile(file))
+        );
+
+        // Contar resultados directamente
+        results.forEach((isValid) => {
+          if (isValid) validCount++;
+          else invalidCount++;
+        });
+      }
+
+      // Mostrar notificación solo una vez con los conteos finales
+      if (validCount > 0 || invalidCount > 0) {
+        showNotification(
+          'info',
+          `Validación completada: ${validCount} archivo(s) seguro(s), ${invalidCount} archivo(s) rechazado(s)`
+        );
+      }
+
       setValidatingFiles(false);
-      return;
-    }
-
-    showNotification(
-      'info',
-      `Iniciando validación de ${pendingFiles.length} archivo(s)`
-    );
-
-    // Validar archivos en paralelo pero con un límite para no saturar
-    const batchSize = 3; // Validar máximo 3 archivos a la vez
-    for (let i = 0; i < pendingFiles.length; i += batchSize) {
-      const batch = pendingFiles.slice(i, i + batchSize);
-      await Promise.all(batch.map((file) => validateSingleFile(file)));
-    }
-
-    const validCount = files.filter((f) => f.validationStatus === 'valid').length;
-    const invalidCount = files.filter(
-      (f) => f.validationStatus === 'invalid'
-    ).length;
-
-    showNotification(
-      'info',
-      `Validación completada: ${validCount} archivo(s) seguro(s), ${invalidCount} archivo(s) rechazado(s)`
-    );
-
-    setValidatingFiles(false);
-  }, [files, validateFile, showNotification]);
+    },
+    [showNotification, validateSingleFile]
+  );
 
   const uploadValidatedFiles = useCallback(
     async (
@@ -143,7 +159,7 @@ export const useMultiFileValidation = (
       let successCount = 0;
       let errorCount = 0;
 
-      for (const fileWithValidation of validatedFiles) {
+      const uploadSingleFile = async (fileWithValidation: FileWithValidation) => {
         try {
           updateFileStatus(fileWithValidation.id, {
             uploadStatus: 'uploading',
@@ -164,6 +180,13 @@ export const useMultiFileValidation = (
           });
           errorCount++;
         }
+      };
+
+      // Subir archivos en paralelo pero con un límite para no saturar
+      const uploadBatchSize = 3; // Subir máximo 3 archivos a la vez
+      for (let i = 0; i < validatedFiles.length; i += uploadBatchSize) {
+        const batch = validatedFiles.slice(i, i + uploadBatchSize);
+        await Promise.all(batch.map((file) => uploadSingleFile(file)));
       }
 
       showNotification(
@@ -171,12 +194,9 @@ export const useMultiFileValidation = (
         `Subida completada: ${successCount} exitoso(s), ${errorCount} error(es)`
       );
 
-      // Remover archivos subidos exitosamente después de 3 segundos
-      setTimeout(() => {
-        setFiles((prev) => prev.filter((f) => f.uploadStatus !== 'success'));
-      }, 3000);
+      setFiles((prev) => prev.filter((f) => f.uploadStatus !== 'success'));
     },
-    [files, showNotification]
+    [files, showNotification, updateFileStatus]
   );
 
   const getValidatedFiles = useCallback(() => {
@@ -189,14 +209,33 @@ export const useMultiFileValidation = (
     );
   }, [files]);
 
+  const retryValidation = useCallback(
+    async (file: FileWithValidation) => {
+      if (file.validationStatus !== 'error') {
+        return;
+      }
+
+      // Resetear el estado del archivo a pending
+      updateFileStatus(file.id, {
+        validationStatus: 'pending',
+        validationMessage: undefined,
+      });
+
+      // Validar solo este archivo
+      await validateSingleFile(file);
+    },
+    [updateFileStatus, validateSingleFile]
+  );
+
   return {
     files,
     validatingFiles,
     addFiles,
     removeFile,
-    validateAllFiles,
+    validateFiles,
     uploadValidatedFiles,
     getValidatedFiles,
     getFailedFiles,
+    retryValidation,
   };
 };
